@@ -24,39 +24,49 @@
     </nav>
 
     <!-- Auth Page -->
-    <section class="bg-gray-100 min-h-screen">
-        <div class="container mx-auto py-8">
-            <h1 class="text-4xl font-bold mb-6 text-center">NewsLink</h1>
-            <div id="news-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- News articles will be dynamically inserted here -->
+    <section id="authPage" class="page min-h-screen flex items-center justify-center">
+        <div class="bg-white p-6 rounded shadow w-96">
+            <h2 class="text-xl font-bold mb-4">Login / Register</h2>
+
+            <input class="border p-2 w-full mb-2" placeholder="Username">
+            <input class="border p-2 w-full mb-2" placeholder="Password" type="password">
+
+            <div class="flex gap-2">
+                <button class="bg-blue-500 text-white px-4 py-2 w-full">Login</button>
+                <button class="bg-green-500 text-white px-4 py-2 w-full">Register</button>
             </div>
         </div>
     </section>
 
     <!-- News Page -->
-    <section class="bg-gray-100 min-h-screen">
-        <div class="container mx-auto py-8">
-            <h2 class="text-2xl font-bold mb-6 text-center">Latest News</h2>
-            <div id="news-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- News articles will be dynamically inserted here -->
-            </div>
+    <section id="newsPage" class="page hidden min-h-screen p-6">
+        <h2 class="text-2xl font-bold mb-4">Latest News</h2>
+
+        <div id="news-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         </div>
+    </section>
 
-        <!-- Saved Page -->
-        <section class="bg-gray-100 min-h-screen">
-            <div class="container mx-auto py-8">
-                <h2 class="text-2xl font-bold mb-6 text-center">Saved Articles</h2>
-                <div id="saved-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Saved articles will be dynamically inserted here -->
-                </div>
-            </div>
-        </section>
+    <!-- Saved Page -->
+    <section id="savedPage" class="page hidden min-h-screen p-6">
+        <h2 class="text-2xl font-bold mb-4">Saved Articles</h2>
 
+        <div id="saved-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        </div>
+    </section>
 
+    <!-- Preferences Page -->
+    <section id="prefPage" class="page hidden min-h-screen p-6">
+        <h2 class="text-2xl font-bold mb-4">Preferences</h2>
 
+        <div class="bg-white p-6 rounded shadow max-w-md">
+            <input class="border p-2 w-full mb-2" placeholder="Category (tech, sports)">
+            <input class="border p-2 w-full mb-2" placeholder="Keyword (AI, Tesla)">
 
-
-
+            <button class="bg-purple-500 text-white px-4 py-2 w-full">
+                Save Preferences
+            </button>
+        </div>
+    </section>
 
 
 
