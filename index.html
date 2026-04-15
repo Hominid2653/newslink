@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <title>NewsLink</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+
+<body class="bg-gray-100">
+
+    <nav class="bg-white shadow p-4 flex justify-between">
+        <h1 class="font-bold">NewsLink</h1>
+
+        <div class="flex gap-4">
+            <button onclick="showPage('authPage')" class="hover:text-blue-500">Auth</button>
+            <button onclick="showPage('newsPage')" class="hover:text-blue-500">News</button>
+            <button onclick="showPage('savedPage')" class="hover:text-blue-500">Saved</button>
+            <button onclick="showPage('prefPage')" class="hover:text-blue-500">Preferences</button>
+        </div>
+    </nav>
+
+    <!-- Auth Page -->
+    <section class="bg-gray-100 min-h-screen">
+        <div class="container mx-auto py-8">
+            <h1 class="text-4xl font-bold mb-6 text-center">NewsLink</h1>
+            <div id="news-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- News articles will be dynamically inserted here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- News Page -->
+    <section class="bg-gray-100 min-h-screen">
+        <div class="container mx-auto py-8">
+            <h2 class="text-2xl font-bold mb-6 text-center">Latest News</h2>
+            <div id="news-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- News articles will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- Saved Page -->
+        <section class="bg-gray-100 min-h-screen">
+            <div class="container mx-auto py-8">
+                <h2 class="text-2xl font-bold mb-6 text-center">Saved Articles</h2>
+                <div id="saved-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Saved articles will be dynamically inserted here -->
+                </div>
+            </div>
+        </section>
+
+
+
+
+
+
+
+
+
+</body>
+
+<script src="script.js"></script>
+
+</html>
