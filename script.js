@@ -124,7 +124,7 @@ async function loadNews(reset = false) {
   try {
     const user = getCurrentUser();
     const users = getUsers();
-    const prefs = users[user]?.preferences || {};
+    const prefs = users[user]?.preferences || { category: "", keyword: "" };
     const savedArticles = users[user]?.savedArticles || [];
 
     let url = prefs.keyword 
@@ -138,6 +138,11 @@ async function loadNews(reset = false) {
     if (articles.length === 0) {
       hasMore = false;
       return;
+    } else{
+      // Calculate relevance scores for each article
+      articles.forEach(article => {
+        article.relevance = scoreArticle(article, prefs, savedArticles);
+      });
     }
 
     // Restore Advanced Scoring Logic
@@ -150,6 +155,24 @@ async function loadNews(reset = false) {
   } finally {
     isLoading = false;
   }
+
+  const articles = data.articles || [];
+
+if (articles.length === 0) {
+  hasMore = false;
+  return;
+}
+
+// Calculate scores and sort from highest to lowest
+articles.forEach(article => {
+  article.relevance = scoreArticle(article, prefs, savedArticles);
+});
+
+articles.sort((a, b) => b.relevance - a.relevance);
+
+renderNews(articles);
+
+
 }
 
 function refreshNews() {
@@ -165,15 +188,26 @@ function renderNews(articles) {
 
   articles.forEach(article => {
     const isSaved = savedArticles.some(a => a.url === article.url);
+    const relevance = article.relevance || 0;
     
+    // Determine color based on relevance
+    const badgeColor = relevance > 70 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
+
     const card = document.createElement("div");
-    card.className = "bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col h-full w-full";
+    card.className = "bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col h-full w-full relative";
     
     card.innerHTML = `
+      <!-- Relevance Badge -->
+      <div class="absolute top-2 left-2 ${badgeColor} px-2 py-1 rounded-md text-xs font-bold shadow-sm z-10">
+        ${relevance}% Match
+      </div>
+
       <img src="${article.urlToImage || 'https://placeholder.com'}" class="w-full h-48 object-cover">
+      
       <div class="p-4 flex flex-col flex-grow">
         <h3 class="font-bold text-lg mb-2 line-clamp-2">${article.title}</h3>
         <p class="text-sm text-gray-600 mb-4 line-clamp-3">${article.description || "No description available."}</p>
+        
         <div class="mt-auto flex justify-between items-center">
           <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">${article.source.name}</span>
           <button class="save-btn text-2xl focus:outline-none">${isSaved ? '⭐' : '☆'}</button>
@@ -185,6 +219,7 @@ function renderNews(articles) {
     container.appendChild(card);
   });
 }
+
 
 function renderSavedArticles() {
   const container = document.getElementById("saved-articles-container");
@@ -248,25 +283,47 @@ function scoreArticle(article, preferences, savedArticles) {
   let score = 0;
   const title = (article.title || "").toLowerCase();
   const desc = (article.description || "").toLowerCase();
-  const keyword = (preferences.keyword || "").toLowerCase();
+  
+  const keyword = (preferences.keyword || "").toLowerCase().trim();
+  const category = (preferences.category || "").toLowerCase().trim();
 
-  if (keyword) {
-    if (title.includes(keyword)) score += 40;
-    if (desc.includes(keyword)) score += 20;
+  // 1. Keyword Match (up to 60%)
+  if (keyword && keyword !== "") {
+    if (title.includes(keyword)) score += 60;
+    else if (desc.includes(keyword)) score += 30;
   }
 
-  // Learned interests from saved articles
-  savedArticles.forEach(saved => {
-    const words = saved.title.split(" ").slice(0, 2);
-    words.forEach(word => {
-      if (word.length > 3 && title.includes(word.toLowerCase())) score += 5;
-    });
-  });
+  // 2. Category Match (up to 20%)
+  if (category && category !== "") {
+    if (title.includes(category) || desc.includes(category)) score += 20;
+  }
 
-  return score;
+  // 3. Saved Articles Interest (up to 20%)
+  if (savedArticles.length > 0) {
+    let matchCount = 0;
+    // Check if current title contains words from saved titles
+    savedArticles.slice(-10).forEach(saved => {
+      const savedTitleWords = saved.title.toLowerCase().split(" ");
+      // Check first two meaningful words of saved titles
+      const keyWords = savedTitleWords.filter(w => w.length > 4).slice(0, 2);
+      keyWords.forEach(word => {
+        if (title.includes(word)) matchCount++;
+      });
+    });
+    score += Math.min(matchCount * 5, 20);
+  }
+
+  // Default baseline so cards aren't always 0%
+  if (score === 0) score = Math.floor(Math.random() * 5) + 5; 
+
+  return Math.min(score, 100);
 }
 
+
+
 /* ================= INFINITE SCROLL ================= */
+
+
 window.onscroll = () => {
   // Triggers when user is near the bottom of the page
   if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
@@ -275,6 +332,18 @@ window.onscroll = () => {
     }
   }
 };
+
+/* ================= INFINITE SCROLL LISTENER ================= */
+window.addEventListener("scroll", () => {
+  // Check if we are on the news page
+  if (localStorage.getItem("currentPage") !== "newsPage") return;
+
+  // Check if we're near the bottom of the page
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+    loadNews(); // This will fetch the next page
+  }
+});
+
 
 function savePreferences() {
   const category = document.getElementById("prefCategory").value;
