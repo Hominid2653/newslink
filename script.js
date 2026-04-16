@@ -118,6 +118,9 @@ function savePreferences() {
 
   saveUsers(users);
 
+  // 🔥 Instantly apply preferences
+  loadNews();
+
   alert("Preferences saved!");
 }
 
