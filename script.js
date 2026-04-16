@@ -41,6 +41,10 @@ function showPage(pageId) {
   if (pageId === "newsPage") {
     loadNews();
   }
+
+  if (pageId === "preferencesPage") {
+  loadPreferencesUI();
+}
 }
 
 /* ================= AUTH ================= */
@@ -118,10 +122,11 @@ function savePreferences() {
 
   saveUsers(users);
 
-  // 🔥 Instantly apply preferences
-  loadNews();
+// 🔥 Refresh UI instantly
+loadPreferencesUI();
+loadNews();
 
-  alert("Preferences saved!");
+alert("Preferences saved!");
 }
 
 /* ================= NEWS API ================= */
@@ -290,32 +295,35 @@ function scoreArticle(article, preferences = {}, savedArticles = []) {
   const keyword = preferences.keyword?.toLowerCase();
   const category = preferences.category?.toLowerCase();
 
-  // 🔥 1. Keyword Match (STRONG)
+  // 🧠 Build user profile
+  const profile = buildUserProfile(savedArticles);
+
+  // 🔥 1. Keyword (strong signal)
   if (keyword) {
     if (title.includes(keyword)) score += 40;
     if (desc.includes(keyword)) score += 30;
   }
 
-  // 📰 2. Category Match
+  // 📰 2. Category
   if (category) {
-    if (title.includes(category)) score += 25;
-    if (desc.includes(category)) score += 15;
+    if (title.includes(category)) score += 20;
+    if (desc.includes(category)) score += 10;
   }
 
-  // ⭐ 3. Similar to Saved Articles (VERY POWERFUL)
-  savedArticles.forEach(saved => {
-    const savedTitle = saved.title?.toLowerCase() || "";
-
-    // basic similarity: shared words
-    const words = savedTitle.split(" ");
-    words.forEach(word => {
-      if (word.length > 4 && title.includes(word)) {
-        score += 2;
-      }
-    });
+  // 🧠 3. Learned Interests (THIS is the magic)
+  Object.keys(profile).forEach(word => {
+    if (title.includes(word)) score += profile[word] * 3;
+    if (desc.includes(word)) score += profile[word] * 2;
   });
 
-  // ⏱ 4. Freshness
+  // ⭐ 4. Boost similar to saved titles
+  savedArticles.forEach(saved => {
+    if (title.includes(saved.title?.split(" ")[0].toLowerCase())) {
+      score += 10;
+    }
+  });
+
+  // ⏱ 5. Freshness
   const hoursDiff = (new Date() - new Date(article.publishedAt)) / (1000 * 60 * 60);
 
   if (hoursDiff < 12) score += 20;
@@ -324,6 +332,27 @@ function scoreArticle(article, preferences = {}, savedArticles = []) {
 
   return Math.min(score, 100);
 }
+
+function loadPreferencesUI() {
+  const user = getCurrentUser();
+  const users = getUsers();
+
+  if (!user) return;
+
+  const prefs = users[user].preferences || {};
+
+  document.getElementById("prefCategory").value = prefs.category || "";
+  document.getElementById("prefKeyword").value = prefs.keyword || "";
+
+  // Display list
+  const list = document.getElementById("current-preferences");
+
+  list.innerHTML = `
+    <li><strong>Category:</strong> ${prefs.category || "None"}</li>
+    <li><strong>Keyword:</strong> ${prefs.keyword || "None"}</li>
+  `;
+}
+
 
 /* ================= RENDER NEWS ================= */
 function renderNews(articles) {
@@ -431,6 +460,23 @@ function createGrid(articles, prefs, savedArticles) {
   });
 
   return grid;
+}
+
+/* ================= USER INTEREST PROFILE ================= */
+function buildUserProfile(savedArticles) {
+  const wordFrequency = {};
+
+  savedArticles.forEach(article => {
+    const text = (article.title + " " + (article.description || "")).toLowerCase();
+
+    text.split(/\W+/).forEach(word => {
+      if (word.length > 4) {
+        wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+      }
+    });
+  });
+
+  return wordFrequency;
 }
 
 /* ================= INIT APP ================= */
