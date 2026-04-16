@@ -1,77 +1,87 @@
 <!doctype html>
 <html>
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <title>NewsLink</title>
-    <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <title>NewsLink</title>
+  <style>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
 </head>
-
 
 <body class="bg-gray-100">
 
-    <nav class="bg-white shadow p-4 flex justify-between">
-        <h1 class="font-bold">NewsLink</h1>
+<!-- ================= NAVBAR ================= -->
+<nav class="bg-white shadow p-4 flex justify-between">
+  <h1 class="font-bold">NewsLink</h1>
 
-        <div class="flex gap-4">
-            <button onclick="showPage('authPage')" class="hover:text-blue-500">Auth</button>
-            <button onclick="showPage('newsPage')" class="hover:text-blue-500">News</button>
-            <button onclick="showPage('savedPage')" class="hover:text-blue-500">Saved</button>
-            <button onclick="showPage('prefPage')" class="hover:text-blue-500">Preferences</button>
-        </div>
-    </nav>
+  <div class="flex gap-4">
+    <button onclick="showPage('newsPage')">News</button>
+    <button onclick="showPage('savedPage')">Saved</button>
+    <button onclick="showPage('prefPage')">Preferences</button>
+    <button onclick="logout()" class="text-red-500">Logout</button>
+  </div>
+</nav>
 
-    <!-- Auth Page -->
-    <section id="authPage" class="page min-h-screen flex items-center justify-center">
-        <div class="bg-white p-6 rounded shadow w-96">
-            <h2 class="text-xl font-bold mb-4">Login / Register</h2>
+<!-- ================= AUTH PAGE ================= -->
+<section id="authPage" class="page min-h-screen flex items-center justify-center">
+  <div class="bg-white p-6 rounded shadow w-96">
+    <h2 class="text-xl font-bold mb-4">Login / Register</h2>
 
-            <input class="border p-2 w-full mb-2" placeholder="Username">
-            <input class="border p-2 w-full mb-2" placeholder="Password" type="password">
+    <input id="username" class="border p-2 w-full mb-2" placeholder="Username">
+    <input id="password" class="border p-2 w-full mb-2" type="password" placeholder="Password">
 
-            <div class="flex gap-2">
-                <button class="bg-blue-500 text-white px-4 py-2 w-full">Login</button>
-                <button class="bg-green-500 text-white px-4 py-2 w-full">Register</button>
-            </div>
-        </div>
-    </section>
+    <div class="flex gap-2">
+      <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 w-full rounded">Login</button>
+      <button onclick="register()" class="bg-green-500 text-white px-4 py-2 w-full rounded">Register</button>
+    </div>
+  </div>
+</section>
 
-    <!-- News Page -->
-    <section id="newsPage" class="page hidden min-h-screen p-6">
-        <h2 class="text-2xl font-bold mb-4">Latest News</h2>
+<!-- ================= NEWS PAGE ================= -->
+<section id="newsPage" class="page hidden min-h-screen p-6">
+  <h2 class="text-2xl font-bold mb-4">Latest News</h2>
 
-        <div id="news-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        </div>
-    </section>
+  <div id="news-articles-container"
+       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  </div>
+</section>
 
-    <!-- Saved Page -->
-    <section id="savedPage" class="page hidden min-h-screen p-6">
-        <h2 class="text-2xl font-bold mb-4">Saved Articles</h2>
+<!-- ================= SAVED PAGE ================= -->
+<section id="savedPage" class="page hidden min-h-screen p-6">
+  <h2 class="text-2xl font-bold mb-4">Saved Articles</h2>
 
-        <div id="saved-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        </div>
-    </section>
+  <div id="saved-articles-container"
+       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  </div>
+</section>
 
-    <!-- Preferences Page -->
-    <section id="prefPage" class="page hidden min-h-screen p-6">
-        <h2 class="text-2xl font-bold mb-4">Preferences</h2>
+<!-- ================= PREFERENCES PAGE ================= -->
+<section id="prefPage" class="page hidden min-h-screen p-6">
+  <h2 class="text-2xl font-bold mb-4">Preferences</h2>
 
-        <div class="bg-white p-6 rounded shadow max-w-md">
-            <input class="border p-2 w-full mb-2" placeholder="Category (tech, sports)">
-            <input class="border p-2 w-full mb-2" placeholder="Keyword (AI, Tesla)">
+  <div class="bg-white p-6 rounded shadow max-w-md">
+    <input id="prefCategory" class="border p-2 w-full mb-2" placeholder="Category (tech, sports)">
+    <input id="prefKeyword" class="border p-2 w-full mb-2" placeholder="Keyword (AI, Tesla)">
 
-            <button class="bg-purple-500 text-white px-4 py-2 w-full">
-                Save Preferences
-            </button>
-        </div>
-    </section>
-
-
-
-</body>
+    <button onclick="savePreferences()" class="bg-purple-500 text-white px-4 py-2 w-full rounded">
+      Save Preferences
+    </button>
+  </div>
+</section>
 
 <script src="script.js"></script>
-
+</body>
 </html>
