@@ -32,20 +32,30 @@ function showPage(pageId) {
     page.classList.add("hidden");
   });
 
-  document.getElementById(pageId).classList.remove("hidden");
+  const targetPage = document.getElementById(pageId);
+  if (targetPage) targetPage.classList.remove("hidden");
+
+  localStorage.setItem("currentPage", pageId);
 
   if (pageId === "savedPage") {
     renderSavedArticles();
   }
 
   if (pageId === "newsPage") {
-    loadNews();
+    loadNews(true); // reset feed when loading
   }
 
-  if (pageId === "preferencesPage") {
-  loadPreferencesUI();
+  if (pageId === "prefPage") {
+    // Logic for preferences UI
+  }
 }
-}
+
+// Logic for auto-refresh
+setInterval(() => {
+  if (localStorage.getItem("currentPage") === "newsPage") {
+    refreshNews();
+  }
+}, 300000); // 5 minutes
 
 /* ================= AUTH ================= */
 function register() {
@@ -58,7 +68,6 @@ function register() {
   }
 
   let users = getUsers();
-
   if (users[username]) {
     alert("User already exists");
     return;
@@ -66,38 +75,26 @@ function register() {
 
   users[username] = {
     password: password,
-    preferences: {
-      category: "",
-      keyword: ""
-    },
+    preferences: { category: "", keyword: "" },
     savedArticles: []
   };
 
   saveUsers(users);
-
   alert("Registration successful!");
 }
 
 function login() {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
-
   let users = getUsers();
 
-  if (!users[username]) {
-    alert("User not found");
-    return;
-  }
-
-  if (users[username].password !== password) {
-    alert("Incorrect password");
+  if (!users[username] || users[username].password !== password) {
+    alert("Invalid credentials");
     return;
   }
 
   setCurrentUser(username);
   showPage("newsPage");
-
-  loadNews();
 }
 
 function logout() {
@@ -105,86 +102,131 @@ function logout() {
   showPage("authPage");
 }
 
-/* ================= PREFERENCES ================= */
-function savePreferences() {
-  const category = document.getElementById("prefCategory").value;
-  const keyword = document.getElementById("prefKeyword").value;
-
-  let users = getUsers();
-  const user = getCurrentUser();
-
-  if (!user) return;
-
-  users[user].preferences = {
-    category,
-    keyword
-  };
-
-  saveUsers(users);
-
-// 🔥 Refresh UI instantly
-loadPreferencesUI();
-loadNews();
-
-alert("Preferences saved!");
-}
-
-/* ================= NEWS API ================= */
+/* ================= NEWS ENGINE ================= */
 const API_KEY = "fcde91c2e5ba40878f79b4539f54c930";
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
 
-async function loadNews() {
+async function loadNews(reset = false) {
   const container = document.getElementById("news-articles-container");
-  container.innerHTML = "<p>Loading news...</p>";
+  if (!container) return;
+
+  if (reset) {
+    currentPage = 1;
+    hasMore = true;
+    container.innerHTML = "";
+  }
+
+  if (isLoading || !hasMore) return;
+  isLoading = true;
 
   try {
     const user = getCurrentUser();
     const users = getUsers();
     const prefs = users[user]?.preferences || {};
+    const savedArticles = users[user]?.savedArticles || [];
 
-    let url = "";
-
-    // 🔥 If keyword exists → use EVERYTHING search
-    if (prefs.keyword) {
-      url = `https://newsapi.org/v2/everything?q=${prefs.keyword}&sortBy=publishedAt&pageSize=10&apiKey=${API_KEY}`;
-    } 
-    // 📰 If category exists → use top-headlines category
-    else if (prefs.category) {
-      url = `https://newsapi.org/v2/top-headlines?country=us&category=${prefs.category}&pageSize=10&apiKey=${API_KEY}`;
-    } 
-    // 🌍 Default fallback
-    else {
-      url = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${API_KEY}`;
-    }
+    let url = prefs.keyword 
+      ? `https://newsapi.org/v2/everything?q=${prefs.keyword}&page=${currentPage}&pageSize=12&apiKey=${API_KEY}`
+      : `https://newsapi.org/v2/top-headlines?country=us&category=${prefs.category || ''}&page=${currentPage}&pageSize=12&apiKey=${API_KEY}`;
 
     const res = await fetch(url);
     const data = await res.json();
+    const articles = data.articles || [];
 
-    renderNews(data.articles || []);
+    if (articles.length === 0) {
+      hasMore = false;
+      return;
+    }
 
+    // Restore Advanced Scoring Logic
+    articles.sort((a, b) => scoreArticle(b, prefs, savedArticles) - scoreArticle(a, prefs, savedArticles));
+
+    renderNews(articles);
+    currentPage++;
   } catch (err) {
-    console.error("Error fetching news:", err);
-    container.innerHTML = "<p class='text-red-500'>Failed to load news.</p>";
+    console.error("Fetch error:", err);
+  } finally {
+    isLoading = false;
   }
 }
 
-/* ================= SAVE SYSTEM ================= */
-function isArticleSaved(article) {
-  const user = getCurrentUser();
-  let users = getUsers();
-
-  if (!user) return false;
-
-  return users[user].savedArticles.some(a => a.url === article.url);
+function refreshNews() {
+    loadNews(true);
 }
 
-function toggleSaveArticle(article) {
+/* ================= RENDERING (FIXED LAYOUT) ================= */
+function renderNews(articles) {
+  const container = document.getElementById("news-articles-container");
+  const currentUser = getCurrentUser();
+  const users = getUsers();
+  const savedArticles = users[currentUser]?.savedArticles || [];
+
+  articles.forEach(article => {
+    const isSaved = savedArticles.some(a => a.url === article.url);
+    
+    const card = document.createElement("div");
+    card.className = "bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col h-full w-full";
+    
+    card.innerHTML = `
+      <img src="${article.urlToImage || 'https://placeholder.com'}" class="w-full h-48 object-cover">
+      <div class="p-4 flex flex-col flex-grow">
+        <h3 class="font-bold text-lg mb-2 line-clamp-2">${article.title}</h3>
+        <p class="text-sm text-gray-600 mb-4 line-clamp-3">${article.description || "No description available."}</p>
+        <div class="mt-auto flex justify-between items-center">
+          <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">${article.source.name}</span>
+          <button class="save-btn text-2xl focus:outline-none">${isSaved ? '⭐' : '☆'}</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector(".save-btn").onclick = () => toggleSaveArticle(article);
+    container.appendChild(card);
+  });
+}
+
+function renderSavedArticles() {
+  const container = document.getElementById("saved-articles-container");
+  container.innerHTML = "";
+  
   const user = getCurrentUser();
+  const users = getUsers();
+  const articles = users[user]?.savedArticles || [];
+
+  if (articles.length === 0) {
+    container.innerHTML = `<p class="col-span-full text-center text-gray-500 py-10">No saved articles yet.</p>`;
+    return;
+  }
+
+  articles.forEach(article => {
+    const card = document.createElement("div");
+    card.className = "bg-white rounded-xl shadow-md overflow-hidden flex flex-col h-full w-full";
+    card.innerHTML = `
+      <img src="${article.urlToImage || 'https://via.placeholder.com/400x200'}" class="w-full h-48 object-cover">
+      <div class="p-4 flex flex-col flex-grow">
+        <h3 class="font-bold text-lg mb-2 line-clamp-2">${article.title}</h3>
+        <div class="mt-auto flex justify-between items-center">
+          <span class="text-xs text-gray-500">${article.source.name}</span>
+          <button class="remove-btn text-yellow-500 text-2xl">⭐</button>
+        </div>
+      </div>
+    `;
+    card.querySelector(".remove-btn").onclick = () => {
+      toggleSaveArticle(article);
+      renderSavedArticles();
+    };
+    container.appendChild(card);
+  });
+}
+
+/* ================= SAVE SYSTEM ================= */
+function toggleSaveArticle(article) {
+  const username = getCurrentUser();
+  if (!username) return;
+
   let users = getUsers();
-
-  if (!user) return;
-
-  let saved = users[user].savedArticles;
-
+  let saved = users[username].savedArticles || [];
   const index = saved.findIndex(a => a.url === article.url);
 
   if (index > -1) {
@@ -193,302 +235,60 @@ function toggleSaveArticle(article) {
     saved.push(article);
   }
 
+  users[username].savedArticles = saved;
   saveUsers(users);
-
-  // refresh UI
-  loadNews();
+  
+  const currentPageId = localStorage.getItem("currentPage");
+  if (currentPageId === "savedPage") renderSavedArticles();
+  else refreshNews();
 }
 
-function getSavedArticles() {
-  const user = getCurrentUser();
-  let users = getUsers();
-
-  if (!user) return [];
-
-  return users[user].savedArticles || [];
-}
-
-function renderSavedArticles() {
-  const container = document.getElementById("saved-articles-container");
-  container.innerHTML = "";
-
-  const articles = getSavedArticles();
-
-  if (articles.length === 0) {
-    container.innerHTML = `
-      <p class="text-center text-gray-500 mt-10">
-        No saved articles yet ⭐
-      </p>
-    `;
-    return;
-  }
-
-  const grid = document.createElement("div");
-  grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
-
-  articles.forEach(article => {
-    const div = document.createElement("div");
-
-    const saved = true; // always true here
-
-    div.innerHTML = `
-      <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col h-full">
-
-        <img 
-          src="${article.urlToImage || 'https://via.placeholder.com/400x200?text=No+Image'}" 
-          class="w-full h-48 object-cover"
-        />
-
-        <div class="p-4 flex flex-col flex-grow">
-
-          <h3 class="font-bold text-lg mb-2 line-clamp-2">
-            ${article.title}
-          </h3>
-
-          <p class="text-sm text-gray-600 mb-3 line-clamp-3">
-            ${article.description || "No description available"}
-          </p>
-
-          <div class="flex-grow"></div>
-
-          <div class="text-xs text-gray-500 mb-2 flex justify-between">
-            <span>${article.source?.name || "Unknown"}</span>
-            <span>${new Date(article.publishedAt).toLocaleDateString()}</span>
-          </div>
-
-          <div class="flex justify-between items-center">
-
-            <span class="text-xs text-gray-400">
-              Saved
-            </span>
-
-            <button class="remove-btn text-yellow-500 text-xl">
-              ⭐
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-    `;
-
-    const btn = div.querySelector(".remove-btn");
-    btn.onclick = () => {
-      toggleSaveArticle(article);
-      renderSavedArticles(); // refresh saved page
-    };
-
-    grid.appendChild(div);
-  });
-
-  container.appendChild(grid);
-}
-
-/* ================= ADVANCED SCORING ================= */
-function scoreArticle(article, preferences = {}, savedArticles = []) {
+/* ================= SCORING LOGIC ================= */
+function scoreArticle(article, preferences, savedArticles) {
   let score = 0;
+  const title = (article.title || "").toLowerCase();
+  const desc = (article.description || "").toLowerCase();
+  const keyword = (preferences.keyword || "").toLowerCase();
 
-  const title = article.title?.toLowerCase() || "";
-  const desc = article.description?.toLowerCase() || "";
-
-  const keyword = preferences.keyword?.toLowerCase();
-  const category = preferences.category?.toLowerCase();
-
-  // 🧠 Build user profile
-  const profile = buildUserProfile(savedArticles);
-
-  // 🔥 1. Keyword (strong signal)
   if (keyword) {
     if (title.includes(keyword)) score += 40;
-    if (desc.includes(keyword)) score += 30;
+    if (desc.includes(keyword)) score += 20;
   }
 
-  // 📰 2. Category
-  if (category) {
-    if (title.includes(category)) score += 20;
-    if (desc.includes(category)) score += 10;
-  }
-
-  // 🧠 3. Learned Interests (THIS is the magic)
-  Object.keys(profile).forEach(word => {
-    if (title.includes(word)) score += profile[word] * 3;
-    if (desc.includes(word)) score += profile[word] * 2;
-  });
-
-  // ⭐ 4. Boost similar to saved titles
+  // Learned interests from saved articles
   savedArticles.forEach(saved => {
-    if (title.includes(saved.title?.split(" ")[0].toLowerCase())) {
-      score += 10;
-    }
-  });
-
-  // ⏱ 5. Freshness
-  const hoursDiff = (new Date() - new Date(article.publishedAt)) / (1000 * 60 * 60);
-
-  if (hoursDiff < 12) score += 20;
-  else if (hoursDiff < 24) score += 15;
-  else if (hoursDiff < 72) score += 5;
-
-  return Math.min(score, 100);
-}
-
-function loadPreferencesUI() {
-  const user = getCurrentUser();
-  const users = getUsers();
-
-  if (!user) return;
-
-  const prefs = users[user].preferences || {};
-
-  document.getElementById("prefCategory").value = prefs.category || "";
-  document.getElementById("prefKeyword").value = prefs.keyword || "";
-
-  // Display list
-  const list = document.getElementById("current-preferences");
-
-  list.innerHTML = `
-    <li><strong>Category:</strong> ${prefs.category || "None"}</li>
-    <li><strong>Keyword:</strong> ${prefs.keyword || "None"}</li>
-  `;
-}
-
-
-/* ================= RENDER NEWS ================= */
-function renderNews(articles) {
-  const container = document.getElementById("news-articles-container");
-  container.innerHTML = "";
-
-  if (articles.length === 0) {
-    container.innerHTML = "<p>No articles found.</p>";
-    return;
-  }
-
-  const user = getCurrentUser();
-  const users = getUsers();
-
-  const prefs = users[user]?.preferences || {};
-  const saved = users[user]?.savedArticles || [];
-
-  // 🧠 Score all articles
-  const scoredArticles = articles.map(article => ({
-    ...article,
-    score: scoreArticle(article, prefs, saved)
-  }));
-
-  // 🔥 Sort by score
-  scoredArticles.sort((a, b) => b.score - a.score);
-
-  // 🎯 Split
-  const recommended = scoredArticles.slice(0, 4);
-  const others = scoredArticles.slice(4);
-
-  // ===== RECOMMENDED SECTION =====
-  const recTitle = document.createElement("h2");
-  recTitle.className = "text-xl font-bold mb-4";
-  recTitle.textContent = "🎯 Recommended For You";
-  container.appendChild(recTitle);
-
-  container.appendChild(createGrid(recommended, prefs, saved));
-
-  // ===== ALL NEWS =====
-  const allTitle = document.createElement("h2");
-  allTitle.className = "text-xl font-bold mt-8 mb-4";
-  allTitle.textContent = "📰 More News";
-  container.appendChild(allTitle);
-
-  container.appendChild(createGrid(others, prefs, saved));
-}
-
-function createGrid(articles, prefs, savedArticles) {
-  const grid = document.createElement("div");
-  grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
-
-  articles.forEach(article => {
-    const div = document.createElement("div");
-
-    const score = scoreArticle(article, prefs, savedArticles);
-    const saved = isArticleSaved(article);
-
-    div.innerHTML = `
-      <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col h-full">
-
-        <img 
-          src="${article.urlToImage || 'https://via.placeholder.com/400x200?text=No+Image'}" 
-          class="w-full h-48 object-cover"
-        />
-
-        <div class="p-4 flex flex-col flex-grow">
-
-          <h3 class="font-bold text-lg mb-2 line-clamp-2">
-            ${article.title}
-          </h3>
-
-          <p class="text-sm text-gray-600 mb-3 line-clamp-3">
-            ${article.description || "No description available"}
-          </p>
-
-          <div class="flex-grow"></div>
-
-          <div class="text-xs text-gray-500 mb-2 flex justify-between">
-            <span>${article.source?.name || "Unknown"}</span>
-            <span>${new Date(article.publishedAt).toLocaleDateString()}</span>
-          </div>
-
-          <div class="flex justify-between items-center">
-
-            <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded">
-              🔥 ${score}%
-            </span>
-
-            <button class="save-btn text-xl ${
-              saved ? "text-yellow-500" : "text-gray-400"
-            }">
-              ${saved ? "⭐" : "☆"}
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-    `;
-
-    div.querySelector(".save-btn").onclick = () => toggleSaveArticle(article);
-
-    grid.appendChild(div);
-  });
-
-  return grid;
-}
-
-/* ================= USER INTEREST PROFILE ================= */
-function buildUserProfile(savedArticles) {
-  const wordFrequency = {};
-
-  savedArticles.forEach(article => {
-    const text = (article.title + " " + (article.description || "")).toLowerCase();
-
-    text.split(/\W+/).forEach(word => {
-      if (word.length > 4) {
-        wordFrequency[word] = (wordFrequency[word] || 0) + 1;
-      }
+    const words = saved.title.split(" ").slice(0, 2);
+    words.forEach(word => {
+      if (word.length > 3 && title.includes(word.toLowerCase())) score += 5;
     });
   });
 
-  return wordFrequency;
+  return score;
 }
 
-/* ================= INIT APP ================= */
-window.onload = function () {
-  initStorage();
-
-  const user = getCurrentUser();
-
-  if (user) {
-    showPage("newsPage");
-    loadNews();
-  } else {
-    showPage("authPage");
+/* ================= INFINITE SCROLL ================= */
+window.onscroll = () => {
+  // Triggers when user is near the bottom of the page
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+    if (localStorage.getItem("currentPage") === "newsPage" && !isLoading && hasMore) {
+      loadNews();
+    }
   }
 };
+
+function savePreferences() {
+  const category = document.getElementById("prefCategory").value;
+  const keyword = document.getElementById("prefKeyword").value;
+  const user = getCurrentUser();
+  if (!user) return;
+
+  let users = getUsers();
+  users[user].preferences = { category, keyword };
+  saveUsers(users);
+  
+  alert("Preferences saved!");
+  showPage("newsPage");
+}
+
+// Global Init
+initStorage();

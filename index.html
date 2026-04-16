@@ -1,89 +1,103 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <title>NewsLink</title>
   <style>
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-</style>
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
 </head>
 
 <body class="bg-gray-100">
 
 <!-- ================= NAVBAR ================= -->
-<nav class="bg-white shadow p-4 flex justify-between">
-  <h1 class="font-bold">NewsLink</h1>
+<nav class="bg-white shadow p-4">
+  <!-- Max-width container keeps content from hitting the screen edges on ultrawide monitors -->
+  <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+    <h1 class="font-bold text-xl cursor-pointer" onclick="showPage('newsPage')">NewsLink</h1>
 
-  <div class="flex gap-4">
-    <button onclick="showPage('newsPage')">News</button>
-    <button onclick="showPage('savedPage')">Saved</button>
-    <button onclick="showPage('prefPage')">Preferences</button>
-    <button onclick="logout()" class="text-red-500">Logout</button>
+    <!-- Center Links -->
+    <div class="flex gap-6 font-medium">
+      <button onclick="showPage('newsPage')" class="hover:text-blue-500 transition-colors">News</button>
+      <button onclick="showPage('savedPage')" class="hover:text-blue-500 transition-colors">Saved</button>
+      <button onclick="showPage('prefPage')" class="hover:text-blue-500 transition-colors">Preferences</button>
+      <button onclick="logout()" class="text-red-500 hover:text-red-700 transition-colors">Logout</button>
+    </div>
+
+    <!-- Action Button -->
+    <button onclick="refreshNews()" 
+      class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 transition-all">
+      <span>🔄</span> Refresh News
+    </button>
   </div>
 </nav>
 
 <!-- ================= AUTH PAGE ================= -->
-<section id="authPage" class="page min-h-screen flex items-center justify-center">
-  <div class="bg-white p-6 rounded shadow w-96">
+<section id="authPage" class="page min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
     <h2 class="text-xl font-bold mb-4">Login / Register</h2>
-
-    <input id="username" class="border p-2 w-full mb-2" placeholder="Username">
-    <input id="password" class="border p-2 w-full mb-2" type="password" placeholder="Password">
+    <input id="username" class="border p-2 w-full mb-2 rounded focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Username">
+    <input id="password" class="border p-2 w-full mb-4 rounded focus:ring-2 focus:ring-blue-400 outline-none" type="password" placeholder="Password">
 
     <div class="flex gap-2">
-      <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 w-full rounded">Login</button>
-      <button onclick="register()" class="bg-green-500 text-white px-4 py-2 w-full rounded">Register</button>
+      <button onclick="login()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 w-full rounded transition-colors">Login</button>
+      <button onclick="register()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 w-full rounded transition-colors">Register</button>
     </div>
   </div>
 </section>
 
 <!-- ================= NEWS PAGE ================= -->
 <section id="newsPage" class="page hidden min-h-screen p-6">
-  <h2 class="text-2xl font-bold mb-4">Latest News</h2>
+  <div class="max-w-7xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Latest News</h2>
 
-  <div id="news-articles-container"
-       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div id="news-articles-container"
+         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+         <!-- Articles will render here -->
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mt-8">
+      <h3 class="font-bold mb-2">Current Preferences</h3>
+      <ul id="current-preferences" class="text-sm text-gray-600 space-y-1"></ul>
+    </div>
   </div>
-  
-  <div class="bg-white p-4 rounded shadow mt-6">
-  <h3 class="font-bold mb-2">Current Preferences</h3>
-  <ul id="current-preferences" class="text-sm text-gray-600 space-y-1"></ul>
-</div>
 </section>
 
 <!-- ================= SAVED PAGE ================= -->
 <section id="savedPage" class="page hidden min-h-screen p-6">
-  <h2 class="text-2xl font-bold mb-4">Saved Articles</h2>
-
-  <div id="saved-articles-container"
-       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div class="max-w-7xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Saved Articles</h2>
+    <div id="saved-articles-container"
+         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    </div>
   </div>
 </section>
 
 <!-- ================= PREFERENCES PAGE ================= -->
 <section id="prefPage" class="page hidden min-h-screen p-6">
-  <h2 class="text-2xl font-bold mb-4">Preferences</h2>
+  <div class="max-w-7xl mx-auto">
+    <h2 class="text-2xl font-bold mb-4">Preferences</h2>
+    <div class="bg-white p-6 rounded shadow-md max-w-md">
+      <input id="prefCategory" class="border p-2 w-full mb-2 rounded" placeholder="Category (tech, sports)">
+      <input id="prefKeyword" class="border p-2 w-full mb-4 rounded" placeholder="Keyword (AI, Tesla)">
 
-  <div class="bg-white p-6 rounded shadow max-w-md">
-    <input id="prefCategory" class="border p-2 w-full mb-2" placeholder="Category (tech, sports)">
-    <input id="prefKeyword" class="border p-2 w-full mb-2" placeholder="Keyword (AI, Tesla)">
-
-    <button onclick="savePreferences()" class="bg-purple-500 text-white px-4 py-2 w-full rounded">
-      Save Preferences
-    </button>
+      <button onclick="savePreferences()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 w-full rounded transition-colors">
+        Save Preferences
+      </button>
+    </div>
   </div>
 </section>
 
