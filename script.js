@@ -129,7 +129,24 @@ async function loadNews() {
   container.innerHTML = "<p>Loading news...</p>";
 
   try {
-    const url = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${API_KEY}`;
+    const user = getCurrentUser();
+    const users = getUsers();
+    const prefs = users[user]?.preferences || {};
+
+    let url = "";
+
+    // 🔥 If keyword exists → use EVERYTHING search
+    if (prefs.keyword) {
+      url = `https://newsapi.org/v2/everything?q=${prefs.keyword}&sortBy=publishedAt&pageSize=10&apiKey=${API_KEY}`;
+    } 
+    // 📰 If category exists → use top-headlines category
+    else if (prefs.category) {
+      url = `https://newsapi.org/v2/top-headlines?country=us&category=${prefs.category}&pageSize=10&apiKey=${API_KEY}`;
+    } 
+    // 🌍 Default fallback
+    else {
+      url = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${API_KEY}`;
+    }
 
     const res = await fetch(url);
     const data = await res.json();
@@ -260,22 +277,47 @@ function renderSavedArticles() {
   container.appendChild(grid);
 }
 
-/* ================= SCORING ================= */
-function scoreArticle(article, preferences = {}) {
+/* ================= ADVANCED SCORING ================= */
+function scoreArticle(article, preferences = {}, savedArticles = []) {
   let score = 0;
 
-  const keyword = preferences.keyword?.toLowerCase();
+  const title = article.title?.toLowerCase() || "";
+  const desc = article.description?.toLowerCase() || "";
 
+  const keyword = preferences.keyword?.toLowerCase();
+  const category = preferences.category?.toLowerCase();
+
+  // 🔥 1. Keyword Match (STRONG)
   if (keyword) {
-    if (article.title?.toLowerCase().includes(keyword)) score += 50;
-    if (article.description?.toLowerCase().includes(keyword)) score += 30;
+    if (title.includes(keyword)) score += 40;
+    if (desc.includes(keyword)) score += 30;
   }
 
-  const publishedDate = new Date(article.publishedAt);
-  const now = new Date();
-  const hoursDiff = (now - publishedDate) / (1000 * 60 * 60);
+  // 📰 2. Category Match
+  if (category) {
+    if (title.includes(category)) score += 25;
+    if (desc.includes(category)) score += 15;
+  }
 
-  if (hoursDiff < 24) score += 20;
+  // ⭐ 3. Similar to Saved Articles (VERY POWERFUL)
+  savedArticles.forEach(saved => {
+    const savedTitle = saved.title?.toLowerCase() || "";
+
+    // basic similarity: shared words
+    const words = savedTitle.split(" ");
+    words.forEach(word => {
+      if (word.length > 4 && title.includes(word)) {
+        score += 2;
+      }
+    });
+  });
+
+  // ⏱ 4. Freshness
+  const hoursDiff = (new Date() - new Date(article.publishedAt)) / (1000 * 60 * 60);
+
+  if (hoursDiff < 12) score += 20;
+  else if (hoursDiff < 24) score += 15;
+  else if (hoursDiff < 72) score += 5;
 
   return Math.min(score, 100);
 }
@@ -292,15 +334,48 @@ function renderNews(articles) {
 
   const user = getCurrentUser();
   const users = getUsers();
-  const prefs = users[user]?.preferences || {};
 
+  const prefs = users[user]?.preferences || {};
+  const saved = users[user]?.savedArticles || [];
+
+  // 🧠 Score all articles
+  const scoredArticles = articles.map(article => ({
+    ...article,
+    score: scoreArticle(article, prefs, saved)
+  }));
+
+  // 🔥 Sort by score
+  scoredArticles.sort((a, b) => b.score - a.score);
+
+  // 🎯 Split
+  const recommended = scoredArticles.slice(0, 4);
+  const others = scoredArticles.slice(4);
+
+  // ===== RECOMMENDED SECTION =====
+  const recTitle = document.createElement("h2");
+  recTitle.className = "text-xl font-bold mb-4";
+  recTitle.textContent = "🎯 Recommended For You";
+  container.appendChild(recTitle);
+
+  container.appendChild(createGrid(recommended, prefs, saved));
+
+  // ===== ALL NEWS =====
+  const allTitle = document.createElement("h2");
+  allTitle.className = "text-xl font-bold mt-8 mb-4";
+  allTitle.textContent = "📰 More News";
+  container.appendChild(allTitle);
+
+  container.appendChild(createGrid(others, prefs, saved));
+}
+
+function createGrid(articles, prefs, savedArticles) {
   const grid = document.createElement("div");
   grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
 
   articles.forEach(article => {
     const div = document.createElement("div");
 
-    const score = scoreArticle(article, prefs);
+    const score = scoreArticle(article, prefs, savedArticles);
     const saved = isArticleSaved(article);
 
     div.innerHTML = `
@@ -347,13 +422,12 @@ function renderNews(articles) {
       </div>
     `;
 
-    const btn = div.querySelector(".save-btn");
-    btn.onclick = () => toggleSaveArticle(article);
+    div.querySelector(".save-btn").onclick = () => toggleSaveArticle(article);
 
     grid.appendChild(div);
   });
 
-  container.appendChild(grid);
+  return grid;
 }
 
 /* ================= INIT APP ================= */
