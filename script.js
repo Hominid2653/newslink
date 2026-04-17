@@ -1,11 +1,12 @@
-/* ================= INIT STORAGE ================= */
+
+//Initializing localstorage
 function initStorage() {
   if (!localStorage.getItem("users")) {
     localStorage.setItem("users", JSON.stringify({}));
   }
 }
 
-/* ================= STORAGE HELPERS ================= */
+//storage helpers
 function getUsers() {
   return JSON.parse(localStorage.getItem("users")) || {};
 }
@@ -26,7 +27,7 @@ function clearCurrentUser() {
   localStorage.removeItem("currentUser");
 }
 
-/* ================= SPA NAV ================= */
+//SPA Navigation
 function showPage(pageId) {
   document.querySelectorAll(".page").forEach(page => {
     page.classList.add("hidden");
@@ -57,7 +58,7 @@ setInterval(() => {
   }
 }, 300000); // 5 minutes
 
-/* ================= AUTH ================= */
+//login Authenticatoin
 function register() {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
@@ -102,7 +103,7 @@ function logout() {
   showPage("authPage");
 }
 
-/* ================= NEWS ENGINE ================= */
+// News Fetching and Rendering
 const API_KEY = "fcde91c2e5ba40878f79b4539f54c930";
 let currentPage = 1;
 let isLoading = false;
@@ -133,53 +134,40 @@ async function loadNews(reset = false) {
 
     const res = await fetch(url);
     const data = await res.json();
+
     const articles = data.articles || [];
 
+    // ✅ Stop if no more results
     if (articles.length === 0) {
       hasMore = false;
       return;
-    } else{
-      // Calculate relevance scores for each article
-      articles.forEach(article => {
-        article.relevance = scoreArticle(article, prefs, savedArticles);
-      });
     }
 
-    // Restore Advanced Scoring Logic
-    articles.sort((a, b) => scoreArticle(b, prefs, savedArticles) - scoreArticle(a, prefs, savedArticles));
+    // ✅ Scoring
+    articles.forEach(article => {
+      article.relevance = scoreArticle(article, prefs, savedArticles);
+    });
 
+    // ✅ Sort by relevance
+    articles.sort((a, b) => b.relevance - a.relevance);
+
+    // ✅ Render
     renderNews(articles);
+
     currentPage++;
+
   } catch (err) {
     console.error("Fetch error:", err);
   } finally {
     isLoading = false;
   }
-
-  const articles = data.articles || [];
-
-if (articles.length === 0) {
-  hasMore = false;
-  return;
-}
-
-// Calculate scores and sort from highest to lowest
-articles.forEach(article => {
-  article.relevance = scoreArticle(article, prefs, savedArticles);
-});
-
-articles.sort((a, b) => b.relevance - a.relevance);
-
-renderNews(articles);
-
-
 }
 
 function refreshNews() {
     loadNews(true);
 }
 
-/* ================= RENDERING (FIXED LAYOUT) ================= */
+// Renders news articles as cards with relevance badges and save buttons
 function renderNews(articles) {
   const container = document.getElementById("news-articles-container");
   const currentUser = getCurrentUser();
@@ -255,7 +243,7 @@ function renderSavedArticles() {
   });
 }
 
-/* ================= SAVE SYSTEM ================= */
+//Save or Delete  article from saved list
 function toggleSaveArticle(article) {
   const username = getCurrentUser();
   if (!username) return;
@@ -278,7 +266,7 @@ function toggleSaveArticle(article) {
   else refreshNews();
 }
 
-/* ================= SCORING LOGIC ================= */
+//Scoring algorithm to determine relevance of articles based on user preferences and saved articles
 function scoreArticle(article, preferences, savedArticles) {
   let score = 0;
   const title = (article.title || "").toLowerCase();
@@ -304,7 +292,7 @@ function scoreArticle(article, preferences, savedArticles) {
     // Check if current title contains words from saved titles
     savedArticles.slice(-10).forEach(saved => {
       const savedTitleWords = saved.title.toLowerCase().split(" ");
-      // Check first two meaningful words of saved titles
+      // Check first two  words of saved titles
       const keyWords = savedTitleWords.filter(w => w.length > 4).slice(0, 2);
       keyWords.forEach(word => {
         if (title.includes(word)) matchCount++;
@@ -321,7 +309,7 @@ function scoreArticle(article, preferences, savedArticles) {
 
 
 
-/* ================= INFINITE SCROLL ================= */
+// Infinite Scroll Listener
 
 
 window.onscroll = () => {
@@ -333,7 +321,7 @@ window.onscroll = () => {
   }
 };
 
-/* ================= INFINITE SCROLL LISTENER ================= */
+//Event listener for infinite scroll
 window.addEventListener("scroll", () => {
   // Check if we are on the news page
   if (localStorage.getItem("currentPage") !== "newsPage") return;
@@ -342,6 +330,27 @@ window.addEventListener("scroll", () => {
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadNews(); // This will fetch the next page
   }
+});
+
+
+const observer = new IntersectionObserver((entries) => {
+  const entry = entries[0];
+
+  console.log("Observer triggered:", entry.isIntersecting);
+
+  if (
+    entry.isIntersecting &&
+    localStorage.getItem("currentPage") === "newsPage" &&
+    !isLoading &&
+    hasMore
+  ) {
+    console.log("Loading more news...");
+    loadNews();
+  }
+}, {
+  root: null,
+  rootMargin: "200px",
+  threshold: 0
 });
 
 

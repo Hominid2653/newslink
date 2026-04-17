@@ -23,13 +23,13 @@
 
 <body class="bg-gray-100">
 
-<!-- ================= NAVBAR ================= -->
+<!-- Navigation Bar -->
 <nav class="bg-white shadow p-4">
   <!-- Max-width container keeps content from hitting the screen edges on ultrawide monitors -->
   <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
     <h1 class="font-bold text-xl cursor-pointer" onclick="showPage('newsPage')">NewsLink</h1>
 
-    <!-- Center Links -->
+    <!-- Links -->
     <div class="flex gap-6 font-medium">
       <button onclick="showPage('newsPage')" class="hover:text-blue-500 transition-colors">News</button>
       <button onclick="showPage('savedPage')" class="hover:text-blue-500 transition-colors">Saved</button>
@@ -37,7 +37,7 @@
       <button onclick="logout()" class="text-red-500 hover:text-red-700 transition-colors">Logout</button>
     </div>
 
-    <!-- Action Button -->
+    <!-- Refresh Button -->
     <button onclick="refreshNews()" 
       class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 transition-all">
       <span>🔄</span> Refresh News
@@ -45,7 +45,7 @@
   </div>
 </nav>
 
-<!-- ================= AUTH PAGE ================= -->
+<!-- Auth Page -->
 <section id="authPage" class="page min-h-screen flex items-center justify-center p-4">
   <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
     <h2 class="text-xl font-bold mb-4">Login / Register</h2>
@@ -59,7 +59,7 @@
   </div>
 </section>
 
-<!-- ================= NEWS PAGE ================= -->
+<!-- News Page -->
 <section id="newsPage" class="page hidden min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-6">Latest News</h2>
@@ -69,6 +69,9 @@
          <!-- Articles will render here -->
     </div>
 
+    <!-- scroll trigger -->
+<div id="scroll-trigger" class="h-20"></div>
+
     <div class="bg-white p-4 rounded shadow mt-8">
       <h3 class="font-bold mb-2">Current Preferences</h3>
       <ul id="current-preferences" class="text-sm text-gray-600 space-y-1"></ul>
@@ -76,7 +79,7 @@
   </div>
 </section>
 
-<!-- ================= SAVED PAGE ================= -->
+<!-- Saved Page -->
 <section id="savedPage" class="page hidden min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-6">Saved Articles</h2>
@@ -86,7 +89,7 @@
   </div>
 </section>
 
-<!-- ================= PREFERENCES PAGE ================= -->
+<!-- Preferences-->
 <section id="prefPage" class="page hidden min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">Preferences</h2>
