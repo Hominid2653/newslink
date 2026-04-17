@@ -1,4 +1,10 @@
 
+
+
+
+
+
+
 //Initializing localstorage
 function initStorage() {
   if (!localStorage.getItem("users")) {
@@ -103,13 +109,15 @@ function logout() {
   showPage("authPage");
 }
 
-// News Fetching and Rendering
-const API_KEY = "3d4434483df34f9691d98d3c4dfd3282";
+// News Fetching and Rendering and searching
+
+const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
+let currentSearchQuery = ""
 
-async function loadNews(reset = false) {
+async function loadNews(reset = false, query = "") {
   const container = document.getElementById("news-articles-container");
   if (!container) return;
 
@@ -117,6 +125,18 @@ async function loadNews(reset = false) {
     currentPage = 1;
     hasMore = true;
     container.innerHTML = "";
+    currentSearchQuery = query; // Updates the global search state
+  }
+
+  // --- Cache Logic ---
+  const cacheKey = currentSearchQuery ? `search_${currentSearchQuery}` : "news_cache";
+  const cacheExpiry = 60 * 60 * 1000; 
+  const cachedData = JSON.parse(localStorage.getItem(cacheKey));
+
+  if (!reset && cachedData && (Date.now() - cachedData.timestamp < cacheExpiry)) {
+    console.log("Using cached results...");
+    renderNews(cachedData.articles);
+    return;
   }
 
   if (isLoading || !hasMore) return;
@@ -128,32 +148,40 @@ async function loadNews(reset = false) {
     const prefs = users[user]?.preferences || { category: "", keyword: "" };
     const savedArticles = users[user]?.savedArticles || [];
 
-    let url = prefs.keyword 
-      ? `https://newsapi.org/v2/everything?q=${prefs.keyword}&page=${currentPage}&pageSize=12&apiKey=${API_KEY}`
+    // SWITCH ENDPOINT: If searching, use /everything. If not, use /top-headlines.
+    let url = currentSearchQuery 
+      ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(currentSearchQuery)}&page=${currentPage}&pageSize=12&apiKey=${API_KEY}`
       : `https://newsapi.org/v2/top-headlines?country=us&category=${prefs.category || ''}&page=${currentPage}&pageSize=12&apiKey=${API_KEY}`;
 
     const res = await fetch(url);
     const data = await res.json();
 
-    const articles = data.articles || [];
-
-    //  Stop if no more results
-    if (articles.length === 0) {
-      hasMore = false;
+    if (res.status === 429) {
+      alert("Rate limit reached. Try again in 24 hours.");
       return;
     }
 
-    //  Scoring
+    const articles = data.articles || [];
+
+    if (articles.length === 0) {
+      hasMore = false;
+      if (reset) container.innerHTML = "<p class='col-span-full text-center py-10'>No results found.</p>";
+      return;
+    }
+
     articles.forEach(article => {
       article.relevance = scoreArticle(article, prefs, savedArticles);
     });
 
-    //  Sort by relevance
     articles.sort((a, b) => b.relevance - a.relevance);
 
-    //  Render
-    renderNews(articles);
+    // Save to cache
+    localStorage.setItem(cacheKey, JSON.stringify({
+      timestamp: Date.now(),
+      articles: articles
+    }));
 
+    renderNews(articles);
     currentPage++;
 
   } catch (err) {
@@ -162,6 +190,7 @@ async function loadNews(reset = false) {
     isLoading = false;
   }
 }
+
 
 function refreshNews() {
     loadNews(true);
@@ -375,6 +404,31 @@ function savePreferences() {
   alert("Preferences saved!");
   showPage("newsPage");
 }
+
+/* ================= EXPOSE FUNCTIONS TO HTML ================= */
+// This allows onclick="" to work with type="module"
+window.login = login;
+window.register = register;
+window.logout = logout;
+window.showPage = showPage;
+window.toggleSaveArticle = toggleSaveArticle;
+
+
+//search listener
+document.getElementById("search-form")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const query = document.getElementById("search-input").value.trim();
+  loadNews(true, query); // Starts a fresh search
+});
+
+//infiniyte scroll listener
+window.addEventListener("scroll", () => {
+  if (localStorage.getItem("currentPage") !== "newsPage") return;
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+    loadNews(); // This will automatically use the currentSearchQuery
+  }
+});
+
 
 // Global Init
 initStorage();
