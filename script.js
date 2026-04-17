@@ -137,21 +137,21 @@ async function loadNews(reset = false) {
 
     const articles = data.articles || [];
 
-    // ✅ Stop if no more results
+    //  Stop if no more results
     if (articles.length === 0) {
       hasMore = false;
       return;
     }
 
-    // ✅ Scoring
+    //  Scoring
     articles.forEach(article => {
       article.relevance = scoreArticle(article, prefs, savedArticles);
     });
 
-    // ✅ Sort by relevance
+    //  Sort by relevance
     articles.sort((a, b) => b.relevance - a.relevance);
 
-    // ✅ Render
+    //  Render
     renderNews(articles);
 
     currentPage++;
