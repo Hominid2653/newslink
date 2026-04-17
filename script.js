@@ -104,7 +104,7 @@ function logout() {
 }
 
 // News Fetching and Rendering
-const API_KEY = "fcde91c2e5ba40878f79b4539f54c930";
+const API_KEY = "3d4434483df34f9691d98d3c4dfd3282";
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
@@ -177,15 +177,12 @@ function renderNews(articles) {
   articles.forEach(article => {
     const isSaved = savedArticles.some(a => a.url === article.url);
     const relevance = article.relevance || 0;
-    
-    // Determine color based on relevance
     const badgeColor = relevance > 70 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
 
     const card = document.createElement("div");
     card.className = "bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col h-full w-full relative";
     
     card.innerHTML = `
-      <!-- Relevance Badge -->
       <div class="absolute top-2 left-2 ${badgeColor} px-2 py-1 rounded-md text-xs font-bold shadow-sm z-10">
         ${relevance}% Match
       </div>
@@ -196,9 +193,19 @@ function renderNews(articles) {
         <h3 class="font-bold text-lg mb-2 line-clamp-2">${article.title}</h3>
         <p class="text-sm text-gray-600 mb-4 line-clamp-3">${article.description || "No description available."}</p>
         
-        <div class="mt-auto flex justify-between items-center">
-          <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">${article.source.name}</span>
-          <button class="save-btn text-2xl focus:outline-none">${isSaved ? '⭐' : '☆'}</button>
+        <div class="mt-auto flex flex-col gap-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">${article.source.name}</span>
+            <button class="save-btn text-2xl focus:outline-none">${isSaved ? '⭐' : '☆'}</button>
+          </div>
+          
+          <!-- NEW: Read More Button -->
+          <a href="${article.url}" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             class="block text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+            Read Full Article
+          </a>
         </div>
       </div>
     `;
@@ -207,6 +214,7 @@ function renderNews(articles) {
     container.appendChild(card);
   });
 }
+
 
 
 function renderSavedArticles() {
