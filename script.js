@@ -414,14 +414,14 @@ window.showPage = showPage;
 window.toggleSaveArticle = toggleSaveArticle;
 
 
-/* ================= NEW: SEARCH LISTENER ================= */
+//search listener
 document.getElementById("search-form")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const query = document.getElementById("search-input").value.trim();
   loadNews(true, query); // Starts a fresh search
 });
 
-/* ================= INFINITE SCROLL ================= */
+//infiniyte scroll listener
 window.addEventListener("scroll", () => {
   if (localStorage.getItem("currentPage") !== "newsPage") return;
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
