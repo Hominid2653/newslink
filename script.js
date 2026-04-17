@@ -109,12 +109,13 @@ function logout() {
   showPage("authPage");
 }
 
-// News Fetching and Rendering
+// News Fetching and Rendering and searching
 
 const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
+
 
 async function loadNews(reset = false) {
   const container = document.getElementById("news-articles-container");
