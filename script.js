@@ -111,7 +111,8 @@ function logout() {
 
 // News Fetching and Rendering and searching
 
-const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+//const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+const API_KEY ="0b171f8c976b4cc9b929c29e19399fb0";
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
