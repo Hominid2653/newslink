@@ -1,4 +1,10 @@
 
+
+
+
+
+
+
 //Initializing localstorage
 function initStorage() {
   if (!localStorage.getItem("users")) {
@@ -104,7 +110,8 @@ function logout() {
 }
 
 // News Fetching and Rendering
-const API_KEY = "3d4434483df34f9691d98d3c4dfd3282";
+
+const API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
@@ -112,6 +119,18 @@ let hasMore = true;
 async function loadNews(reset = false) {
   const container = document.getElementById("news-articles-container");
   if (!container) return;
+
+  const cacheKey = "news_cache";
+  const cacheExpiry = 60 * 60 * 1000; // 1 hour (in milliseconds)
+  const cachedData = JSON.parse(localStorage.getItem(cacheKey));
+
+  // If we aren't forcing a reset AND we have a fresh cache, use it!
+  if (!reset && cachedData && (Date.now() - cachedData.timestamp < cacheExpiry)) {
+    console.log("Using cached news to save API credits...");
+    renderNews(cachedData.articles);
+    return;
+  }
+  
 
   if (reset) {
     currentPage = 1;
@@ -375,6 +394,16 @@ function savePreferences() {
   alert("Preferences saved!");
   showPage("newsPage");
 }
+
+/* ================= EXPOSE FUNCTIONS TO HTML ================= */
+// This allows onclick="" to work with type="module"
+window.login = login;
+window.register = register;
+window.logout = logout;
+window.showPage = showPage;
+window.toggleSaveArticle = toggleSaveArticle;
+
+
 
 // Global Init
 initStorage();
