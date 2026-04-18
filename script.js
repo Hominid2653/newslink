@@ -38,7 +38,16 @@ function showPage(pageId) {
   localStorage.setItem("currentPage", pageId);
 
   if (pageId === "savedPage") renderSavedArticles();
-  if (pageId === "newsPage") loadNews(true);
+
+  // FIX: only fetch fresh news when explicitly navigating to newsPage
+  // and only if the container is empty (avoids re-fetch on every tab switch)
+  if (pageId === "newsPage") {
+    const container = document.getElementById("news-articles-container");
+    if (!container || container.children.length === 0) {
+      loadNews(true);
+    }
+    renderPreferences();
+  }
 }
 
 // ================= AUTH =================
@@ -79,6 +88,58 @@ function login() {
 function logout() {
   clearCurrentUser();
   showPage("authPage");
+}
+
+// ================= PREFERENCES =================
+// FIX: function was referenced in HTML but never defined
+function savePreferences() {
+  const user = getCurrentUser();
+  if (!user) return alert("Not logged in");
+
+  const category = document.getElementById("prefCategory").value.trim();
+  const keyword = document.getElementById("prefKeyword").value.trim();
+
+  let users = getUsers();
+  users[user].preferences = { category, keyword };
+  saveUsers(users);
+
+  alert("Preferences saved!");
+  renderPreferences();
+}
+
+function renderPreferences() {
+  const list = document.getElementById("current-preferences");
+  if (!list) return;
+
+  const user = getCurrentUser();
+  const users = getUsers();
+  const prefs = users[user]?.preferences || {};
+
+  list.innerHTML = "";
+
+  if (!prefs.category && !prefs.keyword) {
+    list.innerHTML = `<li class="text-gray-400 italic">No preferences set</li>`;
+    return;
+  }
+
+  if (prefs.category) {
+    const li = document.createElement("li");
+    li.textContent = `Category: ${prefs.category}`;
+    list.appendChild(li);
+  }
+  if (prefs.keyword) {
+    const li = document.createElement("li");
+    li.textContent = `Keyword: ${prefs.keyword}`;
+    list.appendChild(li);
+  }
+}
+
+// ================= SEARCH =================
+// FIX: search was wired to a <form> submit that caused page reload;
+// now handled via handleSearch() called by a plain button onclick
+function handleSearch() {
+  const query = document.getElementById("search-input").value.trim();
+  loadNews(true, query);
 }
 
 // ================= NEWS ENGINE =================
@@ -199,7 +260,9 @@ function renderNews(articles) {
       </div>
     `;
 
-    card.querySelector(".save-btn").onclick = () => toggleSaveArticle(article);
+    // FIX: event listener attached directly to the element reference,
+    // not via inline onclick string — avoids scope issues with module scripts
+    card.querySelector(".save-btn").addEventListener("click", () => toggleSaveArticle(article, card));
 
     container.appendChild(card);
   });
@@ -224,22 +287,17 @@ function renderSavedArticles() {
   }
 
   articles.forEach(article => {
-    const relevance = 100; // saved = always high relevance feel
-
     const card = document.createElement("div");
     card.className = "bg-white rounded-xl shadow-md hover:shadow-lg flex flex-col overflow-hidden relative";
 
     card.innerHTML = `
-      <!-- Badge -->
       <div class="absolute top-2 left-2 bg-green-100 text-green-700 px-2 py-1 text-xs rounded">
         Saved
       </div>
 
-      <!-- Image -->
       <img src="${article.urlToImage || 'https://via.placeholder.com/400x200'}"
            class="w-full h-48 object-cover">
 
-      <!-- Content -->
       <div class="p-4 flex flex-col flex-grow">
         <h3 class="font-bold text-lg mb-2 line-clamp-2">
           ${article.title}
@@ -250,8 +308,6 @@ function renderSavedArticles() {
         </p>
 
         <div class="mt-auto flex flex-col gap-2">
-
-          <!-- Meta + Remove -->
           <div class="flex justify-between items-center">
             <span class="text-xs text-gray-500">
               ${article.source?.name || "Unknown"}
@@ -262,40 +318,47 @@ function renderSavedArticles() {
             </button>
           </div>
 
-          <!-- Read Button -->
           <a href="${article.url}" target="_blank"
              class="bg-blue-600 text-white text-center py-2 rounded hover:bg-blue-700">
              Read Article
           </a>
-
         </div>
       </div>
     `;
 
-    card.querySelector(".remove-btn").onclick = () => {
-      toggleSaveArticle(article);
+    // FIX: same pattern — addEventListener instead of .onclick assignment
+    card.querySelector(".remove-btn").addEventListener("click", () => {
+      toggleSaveArticle(article, card);
       renderSavedArticles();
-    };
+    });
 
     container.appendChild(card);
   });
 }
 
 // ================= SAVE =================
-function toggleSaveArticle(article) {
+// FIX: removed refreshNews() call — that was re-fetching from the API
+// unnecessarily. Instead we just update the button state in-place.
+function toggleSaveArticle(article, cardEl) {
   const user = getCurrentUser();
   let users = getUsers();
 
   let saved = users[user].savedArticles || [];
   const index = saved.findIndex(a => a.url === article.url);
 
-  if (index > -1) saved.splice(index, 1);
-  else saved.push(article);
+  if (index > -1) {
+    saved.splice(index, 1);
+  } else {
+    saved.push(article);
+  }
 
   users[user].savedArticles = saved;
   saveUsers(users);
 
-  refreshNews();
+  // Update just the star button on the card without re-fetching
+  const isSaved = index === -1; // if it wasn't saved before, it is now
+  const btn = cardEl?.querySelector(".save-btn");
+  if (btn) btn.textContent = isSaved ? "⭐" : "☆";
 }
 
 // ================= SCORING =================
@@ -339,13 +402,17 @@ window.addEventListener("scroll", () => {
   }
 });
 
-/* ================= EXPOSE FUNCTIONS TO HTML ================= */
+// ================= EXPOSE FUNCTIONS TO HTML =================
+// FIX: all functions called via inline onclick in HTML must be on window.
+// Since this file uses type="module", they are NOT global by default.
 window.login = login;
 window.register = register;
 window.logout = logout;
 window.showPage = showPage;
 window.toggleSaveArticle = toggleSaveArticle;
-window.savePreferences = savePreferences; //
+window.savePreferences = savePreferences;
+window.refreshNews = refreshNews;
+window.handleSearch = handleSearch;
 
 // ================= INIT =================
 initStorage();

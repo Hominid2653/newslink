@@ -21,16 +21,13 @@
   </style>
 </head>
 
-
 <body class="bg-gray-100">
 
 <!-- Navigation Bar -->
 <nav class="bg-white shadow p-4">
-  <!-- Max-width container keeps content from hitting the screen edges on ultrawide monitors -->
   <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
     <h1 class="font-bold text-xl cursor-pointer" onclick="showPage('newsPage')">NewsLink</h1>
 
-    <!-- Links -->
     <div class="flex gap-6 font-medium">
       <button onclick="showPage('newsPage')" class="hover:text-blue-500 transition-colors">News</button>
       <button onclick="showPage('savedPage')" class="hover:text-blue-500 transition-colors">Saved</button>
@@ -38,8 +35,7 @@
       <button onclick="logout()" class="text-red-500 hover:text-red-700 transition-colors">Logout</button>
     </div>
 
-    <!-- Refresh Button -->
-    <button onclick="refreshNews()" 
+    <button onclick="refreshNews()"
       class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2 transition-all">
       <span>🔄</span> Refresh News
     </button>
@@ -62,28 +58,28 @@
 
 <!-- News Page -->
 <section id="newsPage" class="page hidden min-h-screen p-6">
-  <!-- Searchbar -->
-<div class="search-container p-4 bg-gray-50 border-b">
-  <form id="search-form" class="flex gap-2 max-w-2xl mx-auto">
-    <input type="text" id="search-input" 
-           placeholder="Search news (e.g., 'SpaceX' or 'Climate Change')..." 
-           class="flex-grow p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-      Search
-    </button>
-  </form>
-</div>
+  <!-- Search bar -->
+  <div class="search-container p-4 bg-gray-50 border-b">
+    <!-- FIX: removed <form> tag; using div + onclick to avoid page reload -->
+    <div id="search-form" class="flex gap-2 max-w-2xl mx-auto">
+      <input type="text" id="search-input"
+             placeholder="Search news (e.g., 'SpaceX' or 'Climate Change')..."
+             class="flex-grow p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+      <button type="button" onclick="handleSearch()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+        Search
+      </button>
+    </div>
+  </div>
 
   <div class="max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-6">Latest News</h2>
 
     <div id="news-articles-container"
          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-         <!-- Articles will render here -->
     </div>
 
-    <!-- scroll trigger -->
-<div id="scroll-trigger" class="h-20"></div>
+    <!-- Scroll trigger for infinite scroll -->
+    <div id="scroll-trigger" class="h-20"></div>
 
     <div class="bg-white p-4 rounded shadow mt-8">
       <h3 class="font-bold mb-2">Current Preferences</h3>
@@ -102,7 +98,7 @@
   </div>
 </section>
 
-<!-- Preferences-->
+<!-- Preferences -->
 <section id="prefPage" class="page hidden min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <h2 class="text-2xl font-bold mb-4">Preferences</h2>
@@ -110,6 +106,7 @@
       <input id="prefCategory" class="border p-2 w-full mb-2 rounded" placeholder="Category (tech, sports)">
       <input id="prefKeyword" class="border p-2 w-full mb-4 rounded" placeholder="Keyword (AI, Tesla)">
 
+      <!-- FIX: onclick matches the actual function name defined in script.js -->
       <button onclick="savePreferences()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 w-full rounded transition-colors">
         Save Preferences
       </button>
