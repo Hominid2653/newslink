@@ -89,6 +89,9 @@ function register() {
   saveUsers(users);
   alert("Registration successful!");
 }
+function encodePassword(password) {
+  return btoa(password);
+}
 
 function login() {
   const username = document.getElementById("username").value.trim();
