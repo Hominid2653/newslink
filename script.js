@@ -53,15 +53,8 @@ function showPage(pageId) {
     renderPreferences();
   }
 
-  // FIX 8: Pre-fill preferences inputs when navigating to prefPage
   if (pageId === "prefPage") {
-    const user = getCurrentUser();
-    const users = getUsers();
-    const prefs = users[user]?.preferences || {};
-    const catEl = document.getElementById("prefCategory");
-    const kwEl = document.getElementById("prefKeyword");
-    if (catEl) catEl.value = prefs.category || "";
-    if (kwEl) kwEl.value = prefs.keyword || "";
+    renderPrefList();
   }
 }
 
@@ -84,7 +77,7 @@ function register() {
 
   users[username] = {
     password: encodePassword(password),
-    preferences: { category: "", keyword: "" },
+    preferences: [],  // array of { category, keyword } objects
     savedArticles: []
   };
 
@@ -112,7 +105,30 @@ function logout() {
 }
 
 // ================= PREFERENCES =================
-// FIX: function was referenced in HTML but never defined
+// Preferences are stored as an array of { category, keyword } objects,
+// allowing the user to build and manage multiple feed filters independently.
+
+// Migration: upgrade legacy single-object preferences to array format
+function migratePreferences() {
+  const users = getUsers();
+  let changed = false;
+  Object.keys(users).forEach(username => {
+    const prefs = users[username].preferences;
+    if (prefs && !Array.isArray(prefs)) {
+      const hasData = prefs.category || prefs.keyword;
+      users[username].preferences = hasData
+        ? [{ category: prefs.category || "", keyword: prefs.keyword || "" }]
+        : [];
+      changed = true;
+    }
+    if (!users[username].preferences) {
+      users[username].preferences = [];
+      changed = true;
+    }
+  });
+  if (changed) saveUsers(users);
+}
+
 function savePreferences() {
   const user = getCurrentUser();
   if (!user) return alert("Not logged in");
@@ -120,39 +136,91 @@ function savePreferences() {
   const category = document.getElementById("prefCategory").value.trim();
   const keyword = document.getElementById("prefKeyword").value.trim();
 
+  if (!category && !keyword) return alert("Enter at least a category or keyword.");
+
   let users = getUsers();
-  users[user].preferences = { category, keyword };
+  const prefs = users[user].preferences;
+
+  const isDuplicate = prefs.some(p => p.category === category && p.keyword === keyword);
+  if (isDuplicate) return alert("This preference already exists.");
+
+  prefs.push({ category, keyword });
   saveUsers(users);
 
-  alert("Preferences saved!");
+  document.getElementById("prefCategory").value = "";
+  document.getElementById("prefKeyword").value = "";
+
+  renderPrefList();
   renderPreferences();
 }
 
+function deletePreference(index) {
+  const user = getCurrentUser();
+  let users = getUsers();
+  users[user].preferences.splice(index, 1);
+  saveUsers(users);
+  renderPrefList();
+  renderPreferences();
+}
+
+// Renders the manageable preference list on the Preferences page
+function renderPrefList() {
+  const container = document.getElementById("pref-list");
+  if (!container) return;
+
+  const user = getCurrentUser();
+  const users = getUsers();
+  const prefs = users[user]?.preferences || [];
+
+  container.innerHTML = "";
+
+  if (!prefs.length) {
+    container.innerHTML = `<p class="text-sm text-gray-400 italic">No preferences added yet.</p>`;
+    return;
+  }
+
+  prefs.forEach((pref, index) => {
+    const row = document.createElement("div");
+    row.className = "flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-2";
+
+    const tags = [];
+    if (pref.category) tags.push(`<span class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">📁 ${pref.category}</span>`);
+    if (pref.keyword)  tags.push(`<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">🔑 ${pref.keyword}</span>`);
+
+    row.innerHTML = `
+      <div class="flex gap-2 flex-wrap">${tags.join("")}</div>
+      <button class="delete-pref-btn text-red-400 hover:text-red-600 text-lg ml-4 transition-colors" title="Remove">✕</button>
+    `;
+
+    row.querySelector(".delete-pref-btn").addEventListener("click", () => deletePreference(index));
+    container.appendChild(row);
+  });
+}
+
+// Renders the compact preference summary on the News page sidebar
 function renderPreferences() {
   const list = document.getElementById("current-preferences");
   if (!list) return;
 
   const user = getCurrentUser();
   const users = getUsers();
-  const prefs = users[user]?.preferences || {};
+  const prefs = users[user]?.preferences || [];
 
   list.innerHTML = "";
 
-  if (!prefs.category && !prefs.keyword) {
+  if (!prefs.length) {
     list.innerHTML = `<li class="text-gray-400 italic">No preferences set</li>`;
     return;
   }
 
-  if (prefs.category) {
+  prefs.forEach(pref => {
     const li = document.createElement("li");
-    li.textContent = `Category: ${prefs.category}`;
+    const parts = [];
+    if (pref.category) parts.push(`Category: ${pref.category}`);
+    if (pref.keyword)  parts.push(`Keyword: ${pref.keyword}`);
+    li.textContent = parts.join(" · ");
     list.appendChild(li);
-  }
-  if (prefs.keyword) {
-    const li = document.createElement("li");
-    li.textContent = `Keyword: ${prefs.keyword}`;
-    list.appendChild(li);
-  }
+  });
 }
 
 // ================= SEARCH =================
@@ -200,15 +268,19 @@ async function loadNews(reset = false, query = "") {
   try {
     const user = getCurrentUser();
     const users = getUsers();
-    const prefs = users[user]?.preferences || {};
+    const prefs = users[user]?.preferences || [];  // array of { category, keyword }
     const savedArticles = users[user]?.savedArticles || [];
 
-    let searchQuery = currentSearchQuery || prefs.keyword || "";
+    // Merge all keywords and categories across preferences into comma-separated values
+    const allKeywords = [...new Set(prefs.map(p => p.keyword).filter(Boolean))];
+    const allCategories = [...new Set(prefs.map(p => p.category).filter(Boolean))];
+
+    let searchQuery = currentSearchQuery || allKeywords.join(" ") || "";
 
     let url = `https://newsdata.io/api/1/news?apikey=${API_KEY}`;
 
     if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
-    if (prefs.category) url += `&category=${prefs.category}`;
+    if (allCategories.length) url += `&category=${allCategories.join(",")}`;
     if (nextPageToken) url += `&page=${nextPageToken}`;
 
     const res = await fetch(url);
@@ -422,17 +494,20 @@ function scoreArticle(article, preferences, savedArticles) {
   const title = (article.title || "").toLowerCase();
   const desc = (article.description || "").toLowerCase();
 
-  const keyword = (preferences.keyword || "").toLowerCase();
-  const category = (preferences.category || "").toLowerCase();
+  // Score against every preference entry in the array
+  preferences.forEach(pref => {
+    const keyword  = (pref.keyword  || "").toLowerCase();
+    const category = (pref.category || "").toLowerCase();
 
-  if (keyword) {
-    if (title.includes(keyword)) score += 60;
-    else if (desc.includes(keyword)) score += 30;
-  }
+    if (keyword) {
+      if (title.includes(keyword)) score += 60;
+      else if (desc.includes(keyword)) score += 30;
+    }
 
-  if (category && (title.includes(category) || desc.includes(category))) {
-    score += 20;
-  }
+    if (category && (title.includes(category) || desc.includes(category))) {
+      score += 20;
+    }
+  });
 
   savedArticles.slice(-10).forEach(saved => {
     saved.title.toLowerCase().split(" ").slice(0, 2).forEach(word => {
@@ -468,8 +543,10 @@ window.logout = logout;
 window.showPage = showPage;
 window.toggleSaveArticle = toggleSaveArticle;
 window.savePreferences = savePreferences;
+window.deletePreference = deletePreference;
 window.refreshNews = refreshNews;
 window.handleSearch = handleSearch;
 
 // ================= INIT =================
 initStorage();
+migratePreferences(); // upgrade any legacy single-object preferences to array format
