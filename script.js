@@ -1,11 +1,11 @@
-// ================= INIT STORAGE =================
+// initialising local storage
 function initStorage() {
   if (!localStorage.getItem("users")) {
     localStorage.setItem("users", JSON.stringify({}));
   }
 }
 
-// ================= STORAGE HELPERS =================
+// Storage helpers
 function getUsers() {
   return JSON.parse(localStorage.getItem("users")) || {};
 }
@@ -26,7 +26,7 @@ function clearCurrentUser() {
   localStorage.removeItem("currentUser");
 }
 
-// ================= SPA NAV =================
+// Navigation
 function showPage(pageId) {
   // FIX 1: Auth guard — any protected page redirects to authPage if not logged in
   const protectedPages = ["newsPage", "savedPage", "prefPage"];
@@ -54,13 +54,14 @@ function showPage(pageId) {
   }
 
   if (pageId === "prefPage") {
+    renderCategoryPicker();
     renderPrefList();
   }
 }
 
-// ================= AUTH =================
-// FIX 2: Passwords are encoded with btoa before storing — not cryptographic
-// but prevents plain-text exposure in localStorage for an assignment context
+// Auth
+// Passwords are encoded with btoa before storing 
+
 function encodePassword(password) {
   return btoa(password);
 }
@@ -104,11 +105,79 @@ function logout() {
   showPage("authPage");
 }
 
-// ================= PREFERENCES =================
+// Preferences
+// All 18 categories supported by newsdata.io — hardcoded-from docs
+const CATEGORIES = [
+  { value: "business",       label: "Business",       emoji: "💼" },
+  { value: "crime",          label: "Crime",           emoji: "🔍" },
+  { value: "domestic",       label: "Domestic",        emoji: "🏠" },
+  { value: "education",      label: "Education",       emoji: "🎓" },
+  { value: "entertainment",  label: "Entertainment",   emoji: "🎬" },
+  { value: "environment",    label: "Environment",     emoji: "🌿" },
+  { value: "food",           label: "Food",            emoji: "🍽️" },
+  { value: "health",         label: "Health",          emoji: "❤️" },
+  { value: "lifestyle",      label: "Lifestyle",       emoji: "✨" },
+  { value: "other",          label: "Other",           emoji: "📦" },
+  { value: "politics",       label: "Politics",        emoji: "🏛️" },
+  { value: "science",        label: "Science",         emoji: "🔬" },
+  { value: "sports",         label: "Sports",          emoji: "⚽" },
+  { value: "technology",     label: "Technology",      emoji: "💻" },
+  { value: "top",            label: "Top Stories",     emoji: "🔥" },
+  { value: "tourism",        label: "Tourism",         emoji: "✈️" },
+  { value: "world",          label: "World",           emoji: "🌍" },
+  { value: "general",        label: "General",         emoji: "📰" },
+];
+
+// Tracks which category tag is currently selected in the picker
+let selectedCategory = "";
+
+function renderCategoryPicker() {
+  const container = document.getElementById("category-tag-picker");
+  if (!container) return;
+
+  container.innerHTML = "";
+  selectedCategory = ""; // reset on each render
+  document.getElementById("prefCategory").value = "";
+
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.value = cat.value;
+    btn.className = [
+      "category-tag px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+      "border-gray-200 bg-gray-50 text-gray-600",
+      "hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700"
+    ].join(" ");
+    btn.innerHTML = `${cat.emoji} ${cat.label}`;
+
+    btn.addEventListener("click", () => {
+      // Deselect if already selected, otherwise select this one
+      if (selectedCategory === cat.value) {
+        selectedCategory = "";
+        document.getElementById("prefCategory").value = "";
+      } else {
+        selectedCategory = cat.value;
+        document.getElementById("prefCategory").value = cat.value;
+      }
+      // Update visual state of all tags
+      container.querySelectorAll(".category-tag").forEach(b => {
+        const isSelected = b.dataset.value === selectedCategory;
+        b.className = [
+          "category-tag px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+          isSelected
+            ? "border-purple-500 bg-purple-600 text-white shadow-sm"
+            : "border-gray-200 bg-gray-50 text-gray-600 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700"
+        ].join(" ");
+      });
+    });
+
+    container.appendChild(btn);
+  });
+}
+
 // Preferences are stored as an array of { category, keyword } objects,
 // allowing the user to build and manage multiple feed filters independently.
 
-// Migration: upgrade legacy single-object preferences to array format
 function migratePreferences() {
   const users = getUsers();
   let changed = false;
@@ -149,6 +218,11 @@ function savePreferences() {
 
   document.getElementById("prefCategory").value = "";
   document.getElementById("prefKeyword").value = "";
+  // Reset the tag picker visual state
+  selectedCategory = "";
+  document.querySelectorAll(".category-tag").forEach(btn => {
+    btn.className = "category-tag px-3 py-1.5 rounded-full text-sm font-medium border transition-all border-gray-200 bg-gray-50 text-gray-600 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700";
+  });
 
   renderPrefList();
   renderPreferences();
@@ -163,7 +237,7 @@ function deletePreference(index) {
   renderPreferences();
 }
 
-// Renders the manageable preference list on the Preferences page
+// Renders the preference list on the Preferences page
 function renderPrefList() {
   const container = document.getElementById("pref-list");
   if (!container) return;
@@ -172,24 +246,41 @@ function renderPrefList() {
   const users = getUsers();
   const prefs = users[user]?.preferences || [];
 
+  // Update count badge
+  const countEl = document.getElementById("pref-count");
+  if (countEl) countEl.textContent = prefs.length;
+
   container.innerHTML = "";
 
   if (!prefs.length) {
-    container.innerHTML = `<p class="text-sm text-gray-400 italic">No preferences added yet.</p>`;
+    container.innerHTML = `
+      <div class="flex flex-col items-center py-6 text-gray-400">
+        <span class="text-3xl mb-2">🗂️</span>
+        <p class="text-sm italic">No preferences added yet.</p>
+        <p class="text-xs mt-1">Add a category or keyword above to personalise your feed.</p>
+      </div>
+    `;
     return;
   }
 
   prefs.forEach((pref, index) => {
     const row = document.createElement("div");
-    row.className = "flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-2";
+    row.className = "flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 group";
 
     const tags = [];
-    if (pref.category) tags.push(`<span class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">📁 ${pref.category}</span>`);
-    if (pref.keyword)  tags.push(`<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">🔑 ${pref.keyword}</span>`);
+    if (pref.category) {
+      // Look up the emoji label for the category value
+      const catMeta = CATEGORIES.find(c => c.value === pref.category);
+      const label = catMeta ? `${catMeta.emoji} ${catMeta.label}` : pref.category;
+      tags.push(`<span class="bg-purple-100 text-purple-700 text-xs font-medium px-3 py-1 rounded-full">${label}</span>`);
+    }
+    if (pref.keyword) {
+      tags.push(`<span class="bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1 rounded-full">🔑 ${pref.keyword}</span>`);
+    }
 
     row.innerHTML = `
       <div class="flex gap-2 flex-wrap">${tags.join("")}</div>
-      <button class="delete-pref-btn text-red-400 hover:text-red-600 text-lg ml-4 transition-colors" title="Remove">✕</button>
+      <button class="delete-pref-btn opacity-40 group-hover:opacity-100 hover:text-red-500 text-gray-400 text-sm ml-4 transition-all font-bold" title="Remove preference">✕</button>
     `;
 
     row.querySelector(".delete-pref-btn").addEventListener("click", () => deletePreference(index));
@@ -223,15 +314,13 @@ function renderPreferences() {
   });
 }
 
-// ================= SEARCH =================
-// FIX: search was wired to a <form> submit that caused page reload;
-// now handled via handleSearch() called by a plain button onclick
+// Searching
 function handleSearch() {
   const query = document.getElementById("search-input").value.trim();
   loadNews(true, query);
 }
 
-// ================= NEWS ENGINE =================
+// News engine
 const API_KEY = "pub_198996087b1e4c98b6eb271bfb7ebfbb";
 
 let isLoading = false;
@@ -255,7 +344,7 @@ async function loadNews(reset = false, query = "") {
   if (isLoading || !hasMore) return;
   isLoading = true;
 
-  // FIX 6: Show a loading spinner while fetching
+  // Show a loading spinner while fetching
   const spinner = document.createElement("div");
   spinner.id = "news-spinner";
   spinner.className = "col-span-full flex justify-center items-center py-10";
@@ -271,7 +360,7 @@ async function loadNews(reset = false, query = "") {
     const prefs = users[user]?.preferences || [];  // array of { category, keyword }
     const savedArticles = users[user]?.savedArticles || [];
 
-    // Merge all keywords and categories across preferences into comma-separated values
+    // Merge all keywords and categories across preferences into csv
     const allKeywords = [...new Set(prefs.map(p => p.keyword).filter(Boolean))];
     const allCategories = [...new Set(prefs.map(p => p.category).filter(Boolean))];
 
@@ -290,7 +379,7 @@ async function loadNews(reset = false, query = "") {
 
     if (articles.length === 0) {
       hasMore = false;
-      // FIX 7: Show a user-facing message when no results come back
+      // Show a feedback when no results come back
       if (reset) {
         container.innerHTML = `
           <p class="col-span-full text-center text-gray-500 py-10">
@@ -322,7 +411,7 @@ async function loadNews(reset = false, query = "") {
     renderNews(normalized);
 
   } catch (err) {
-    // FIX 7: Surface fetch errors to the user instead of silently failing
+    // Surface fetch errors to the user instead of silently failing
     console.error("Fetch error:", err);
     if (reset) {
       container.innerHTML = `
@@ -333,7 +422,7 @@ async function loadNews(reset = false, query = "") {
     }
   } finally {
     isLoading = false;
-    // Always remove spinner when done
+    // Removing spinner after fetching
     document.getElementById("news-spinner")?.remove();
   }
 }
@@ -342,7 +431,7 @@ function refreshNews() {
   loadNews(true);
 }
 
-// ================= RENDER NEWS =================
+// Render news articles on the News page, called after fetching and scoring
 function renderNews(articles) {
   const container = document.getElementById("news-articles-container");
 
@@ -384,15 +473,14 @@ function renderNews(articles) {
       </div>
     `;
 
-    // FIX: event listener attached directly to the element reference,
-    // not via inline onclick string — avoids scope issues with module scripts
+    
     card.querySelector(".save-btn").addEventListener("click", () => toggleSaveArticle(article, card));
 
     container.appendChild(card);
   });
 }
 
-// ================= SAVED =================
+// Saved articles page
 function renderSavedArticles() {
   const container = document.getElementById("saved-articles-container");
   container.innerHTML = "";
@@ -451,7 +539,6 @@ function renderSavedArticles() {
       </div>
     `;
 
-    // FIX: same pattern — addEventListener instead of .onclick assignment
     card.querySelector(".remove-btn").addEventListener("click", () => {
       toggleSaveArticle(article, card);
       renderSavedArticles();
@@ -461,7 +548,7 @@ function renderSavedArticles() {
   });
 }
 
-// ================= SAVE =================
+// Saveing articles
 function toggleSaveArticle(article, cardEl) {
   const user = getCurrentUser();
   let users = getUsers();
@@ -472,8 +559,7 @@ function toggleSaveArticle(article, cardEl) {
   if (index > -1) {
     saved.splice(index, 1);
   } else {
-    // FIX 4: Strip the stale relevance score before persisting —
-    // it's computed at render time and shouldn't be frozen into storage
+    
     const { relevance, ...articleToSave } = article;
     saved.push(articleToSave);
   }
@@ -487,7 +573,7 @@ function toggleSaveArticle(article, cardEl) {
   if (btn) btn.textContent = isSaved ? "⭐" : "☆";
 }
 
-// ================= SCORING =================
+// Scoring
 function scoreArticle(article, preferences, savedArticles) {
   let score = 0;
 
@@ -518,7 +604,7 @@ function scoreArticle(article, preferences, savedArticles) {
   return Math.min(score || 5, 100);
 }
 
-// ================= INFINITE SCROLL =================
+// infinite scroller
 window.addEventListener("scroll", () => {
   // FIX 5: Check the DOM directly rather than relying on localStorage —
   // avoids the race window where currentPage is stale during tab switches
@@ -534,9 +620,7 @@ window.addEventListener("scroll", () => {
   }
 });
 
-// ================= EXPOSE FUNCTIONS TO HTML =================
-// FIX: all functions called via inline onclick in HTML must be on window.
-// Since this file uses type="module", they are NOT global by default.
+// exposing functions to html for oclicks
 window.login = login;
 window.register = register;
 window.logout = logout;
