@@ -339,5 +339,13 @@ window.addEventListener("scroll", () => {
   }
 });
 
+/* ================= EXPOSE FUNCTIONS TO HTML ================= */
+window.login = login;
+window.register = register;
+window.logout = logout;
+window.showPage = showPage;
+window.toggleSaveArticle = toggleSaveArticle;
+window.savePreferences = savePreferences; //
+
 // ================= INIT =================
 initStorage();
